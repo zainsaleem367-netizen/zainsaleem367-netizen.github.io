@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1736">
+  <meta name="description" content="A private, offline-first personal finance manager.">
+  <title>Zain Finance</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#dashboard" aria-label="Zain Finance home">
+        <span class="brand-mark">ZF</span>
+        <span><strong>Zain</strong><small>Finance</small></span>
+      </a>
+
+      <nav class="main-nav" aria-label="Main navigation">
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Overview</span></button>
+        <button class="nav-item" data-view="transactions"><span class="nav-icon">↕</span><span>Transactions</span></button>
+        <button class="nav-item" data-view="accounts"><span class="nav-icon">▣</span><span>Accounts</span></button>
+        <button class="nav-item" data-view="budgets"><span class="nav-icon">◎</span><span>Budgets</span></button>
+        <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span><span>Reports</span></button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+        <div class="privacy-note"><span>●</span> Data stays on this device</div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="todayLabel"></p>
+          <h1 id="pageTitle">Financial overview</h1>
+        </div>
+        <div class="topbar-actions">
+          <button class="icon-button" id="installButton" title="Install app" hidden>⇩</button>
+          <button class="primary-button" data-open="transaction"><span>＋</span> Add transaction</button>
+        </div>
+      </header>
+
+      <section class="view active" id="dashboardView">
+        <div class="hero-card">
+          <div>
+            <p>Total balance</p>
+            <h2 id="totalBalance">AED 0.00</h2>
+            <span class="trend neutral" id="balanceTrend">Your available money</span>
+          </div>
+          <div class="hero-decoration"><i></i><i></i><i></i></div>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric-card"><span class="metric-icon income">↓</span><div><p>Income this month</p><h3 id="monthIncome">AED 0.00</h3><small id="incomeComparison">Current month</small></div></article>
+          <article class="metric-card"><span class="metric-icon expense">↑</span><div><p>Expenses this month</p><h3 id="monthExpense">AED 0.00</h3><small id="expenseComparison">Current month</small></div></article>
+          <article class="metric-card"><span class="metric-icon savings">◆</span><div><p>Net savings</p><h3 id="monthSavings">AED 0.00</h3><small id="savingsRate">0% savings rate</small></div></article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel spending-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Cash flow</p><h3>Income vs expenses</h3></div><select id="chartPeriod" aria-label="Chart period"><option value="6">Last 6 months</option><option value="12">Last 12 months</option></select></div>
+            <div id="cashflowChart" class="cashflow-chart" aria-label="Monthly cash flow chart"></div>
+            <div class="chart-legend"><span><i class="income-dot"></i>Income</span><span><i class="expense-dot"></i>Expenses</span></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">This month</p><h3>Budget status</h3></div><button class="text-button" data-view-jump="budgets">View all</button></div>
+            <div id="budgetPreview" class="budget-preview"></div>
+          </article>
+
+          <article class="panel recent-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Activity</p><h3>Recent transactions</h3></div><button class="text-button" data-view-jump="transactions">View all</button></div>
+            <div id="recentTransactions" class="transaction-list"></div>
+          </article>
+
+          <article class="panel account-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Funds</p><h3>Your accounts</h3></div><button class="text-button" data-view-jump="accounts">Manage</button></div>
+            <div id="accountPreview" class="account-preview"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="transactionsView">
+        <div class="toolbar">
+          <div class="search-box"><span>⌕</span><input id="transactionSearch" type="search" placeholder="Search transactions"></div>
+          <select id="transactionTypeFilter"><option value="all">All types</option><option value="income">Income</option><option value="expense">Expense</option></select>
+          <select id="transactionMonthFilter"></select>
+          <button class="secondary-button" id="exportCsv">Export CSV</button>
+        </div>
+        <article class="panel table-panel">
+          <div class="responsive-table">
+            <table>
+              <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Account</th><th>Type</th><th class="amount-cell">Amount</th><th></th></tr></thead>
+              <tbody id="transactionTableBody"></tbody>
+            </table>
+          </div>
+          <div id="transactionEmpty" class="empty-state" hidden><span>↕</span><h3>No transactions found</h3><p>Add a transaction or change your filters.</p></div>
+        </article>
+      </section>
+
+      <section class="view" id="accountsView">
+        <div class="section-intro"><div><p>Track cash, bank accounts and cards in one place.</p></div><button class="secondary-button" data-open="account">＋ Add account</button></div>
+        <div id="accountGrid" class="account-grid"></div>
+      </section>
+
+      <section class="view" id="budgetsView">
+        <div class="section-intro"><div><p>Set monthly limits and spot overspending early.</p></div><div class="inline-actions"><input id="budgetMonth" type="month"><button class="secondary-button" data-open="budget">＋ Set budget</button></div></div>
+        <div id="budgetGrid" class="budget-grid"></div>
+      </section>
+
+      <section class="view" id="reportsView">
+        <div class="section-intro"><div><p>Understand where your money comes from and where it goes.</p></div><input id="reportMonth" type="month"></div>
+        <div class="metric-grid report-metrics">
+          <article class="metric-card"><span class="metric-icon income">↓</span><div><p>Total income</p><h3 id="reportIncome">AED 0.00</h3></div></article>
+          <article class="metric-card"><span class="metric-icon expense">↑</span><div><p>Total expenses</p><h3 id="reportExpense">AED 0.00</h3></div></article>
+          <article class="metric-card"><span class="metric-icon savings">◆</span><div><p>Net result</p><h3 id="reportNet">AED 0.00</h3></div></article>
+        </div>
+        <div class="report-grid">
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">Breakdown</p><h3>Spending by category</h3></div></div><div id="categoryChart" class="category-chart"></div></article>
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">Details</p><h3>Category totals</h3></div></div><div id="categoryTotals" class="category-totals"></div></article>
+        </div>
+      </section>
+
+      <section class="view" id="settingsView">
+        <div class="settings-grid">
+          <article class="panel settings-card"><div class="settings-icon">¤</div><div><h3>Currency</h3><p>Choose the currency used throughout the app.</p><select id="currencySetting"><option value="AED">AED — UAE Dirham</option><option value="PKR">PKR — Pakistani Rupee</option><option value="USD">USD — US Dollar</option><option value="GBP">GBP — British Pound</option><option value="EUR">EUR — Euro</option></select></div></article>
+          <article class="panel settings-card"><div class="settings-icon">⇩</div><div><h3>Backup your data</h3><p>Download a complete backup that you can restore later.</p><button class="secondary-button" id="backupData">Download backup</button></div></article>
+          <article class="panel settings-card"><div class="settings-icon">⇧</div><div><h3>Restore a backup</h3><p>Import a Zain Finance JSON backup from this or another device.</p><label class="secondary-button file-button">Choose backup<input id="restoreData" type="file" accept="application/json"></label></div></article>
+          <article class="panel settings-card danger-card"><div class="settings-icon">!</div><div><h3>Reset all data</h3><p>Delete your accounts, transactions and budgets from this device.</p><button class="danger-button" id="resetData">Reset app</button></div></article>
+        </div>
+        <article class="panel about-card"><span class="brand-mark">ZF</span><div><h3>Zain Finance</h3><p>Offline-first personal finance manager · Version 1.0</p></div></article>
+      </section>
+    </main>
+
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Home</span></button>
+      <button class="nav-item" data-view="transactions"><span class="nav-icon">↕</span><span>Activity</span></button>
+      <button class="mobile-add" data-open="transaction" aria-label="Add transaction">＋</button>
+      <button class="nav-item" data-view="budgets"><span class="nav-icon">◎</span><span>Budgets</span></button>
+      <button class="nav-item" data-view="reports"><span class="nav-icon">▥</span><span>Reports</span></button>
+    </nav>
+  </div>
+
+  <dialog id="transactionDialog" class="app-dialog">
+    <form id="transactionForm" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">Money movement</p><h2 id="transactionDialogTitle">Add transaction</h2></div><button type="button" class="close-button" data-close>×</button></div>
+      <input type="hidden" name="id">
+      <div class="type-switch"><label><input type="radio" name="type" value="expense" checked><span>Expense</span></label><label><input type="radio" name="type" value="income"><span>Income</span></label></div>
+      <div class="form-grid">
+        <label class="amount-field full"><span>Amount</span><div><b id="amountCurrency">AED</b><input name="amount" type="number" min="0.01" step="0.01" placeholder="0.00" required></div></label>
+        <label class="full"><span>Description</span><input name="description" maxlength="80" placeholder="e.g. Grocery shopping" required></label>
+        <label><span>Date</span><input name="date" type="date" required></label>
+        <label><span>Category</span><select name="category" required></select></label>
+        <label class="full"><span>Account</span><select name="accountId" required></select></label>
+        <label class="full"><span>Notes <small>(optional)</small></span><textarea name="notes" rows="2" maxlength="180" placeholder="Add a note"></textarea></label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="secondary-button" data-close>Cancel</button><button class="primary-button" type="submit">Save transaction</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="accountDialog" class="app-dialog small-dialog">
+    <form id="accountForm" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">Funds</p><h2 id="accountDialogTitle">Add account</h2></div><button type="button" class="close-button" data-close>×</button></div>
+      <input type="hidden" name="id">
+      <div class="form-grid">
+        <label class="full"><span>Account name</span><input name="name" maxlength="40" placeholder="e.g. Emirates NBD" required></label>
+        <label><span>Account type</span><select name="type"><option value="bank">Bank account</option><option value="cash">Cash</option><option value="card">Credit card</option><option value="savings">Savings</option></select></label>
+        <label><span>Opening balance</span><input name="openingBalance" type="number" step="0.01" value="0" required></label>
+        <label class="full"><span>Colour</span><div class="colour-options"><label><input type="radio" name="colour" value="#4078ff" checked><i style="--swatch:#4078ff"></i></label><label><input type="radio" name="colour" value="#14b888"><i style="--swatch:#14b888"></i></label><label><input type="radio" name="colour" value="#8c5cf5"><i style="--swatch:#8c5cf5"></i></label><label><input type="radio" name="colour" value="#f59e3d"><i style="--swatch:#f59e3d"></i></label><label><input type="radio" name="colour" value="#e5587a"><i style="--swatch:#e5587a"></i></label></div></label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="secondary-button" data-close>Cancel</button><button class="primary-button" type="submit">Save account</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="budgetDialog" class="app-dialog small-dialog">
+    <form id="budgetForm" method="dialog">
+      <div class="dialog-heading"><div><p class="eyebrow">Spending limit</p><h2>Set monthly budget</h2></div><button type="button" class="close-button" data-close>×</button></div>
+      <div class="form-grid">
+        <label class="full"><span>Month</span><input name="month" type="month" required></label>
+        <label class="full"><span>Expense category</span><select name="category" required></select></label>
+        <label class="full amount-field"><span>Budget amount</span><div><b id="budgetCurrency">AED</b><input name="amount" type="number" min="1" step="0.01" required></div></label>
+      </div>
+      <div class="dialog-actions"><button type="button" class="secondary-button" data-close>Cancel</button><button class="primary-button" type="submit">Save budget</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
