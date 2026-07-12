@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'zain-finance-v1';
+const STORAGE_KEY = 'zain-finance-v2';
 
 const expenseCategories = ['Housing', 'Food & Dining', 'Transport', 'Utilities', 'Shopping', 'Health', 'Education', 'Family', 'Travel', 'Entertainment', 'Other'];
 const incomeCategories = ['Salary', 'Freelance', 'Business', 'Investment', 'Gift', 'Refund', 'Other Income'];
@@ -18,37 +18,17 @@ const escapeHtml = (text = '') => String(text).replace(/[&<>'"]/g, c => ({ '&': 
 const sum = values => values.reduce((total, value) => total + Number(value || 0), 0);
 
 function createSeedData() {
-  const now = new Date();
-  const d = days => { const value = new Date(now); value.setDate(value.getDate() - days); return isoDate(value); };
-  const previousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 16);
   return {
-    version: 1,
+    version: 2,
     settings: { currency: 'AED' },
-    accounts: [
-      { id: 'acc-bank', name: 'Main Bank', type: 'bank', openingBalance: 8500, colour: '#4078ff' },
-      { id: 'acc-cash', name: 'Cash Wallet', type: 'cash', openingBalance: 650, colour: '#14b888' },
-      { id: 'acc-save', name: 'Savings', type: 'savings', openingBalance: 5000, colour: '#8c5cf5' }
-    ],
-    transactions: [
-      { id: id(), type: 'income', amount: 5000, description: 'Monthly salary', category: 'Salary', accountId: 'acc-bank', date: d(Math.min(now.getDate() - 1, 5)), notes: '' },
-      { id: id(), type: 'expense', amount: 1850, description: 'Apartment rent', category: 'Housing', accountId: 'acc-bank', date: d(4), notes: '' },
-      { id: id(), type: 'expense', amount: 245.75, description: 'Weekly groceries', category: 'Food & Dining', accountId: 'acc-bank', date: d(2), notes: '' },
-      { id: id(), type: 'expense', amount: 120, description: 'Fuel', category: 'Transport', accountId: 'acc-cash', date: d(1), notes: '' },
-      { id: id(), type: 'expense', amount: 165.5, description: 'Mobile and internet', category: 'Utilities', accountId: 'acc-bank', date: d(6), notes: '' },
-      { id: id(), type: 'income', amount: 5000, description: 'Monthly salary', category: 'Salary', accountId: 'acc-bank', date: isoDate(previousMonth), notes: '' },
-      { id: id(), type: 'expense', amount: 1800, description: 'Apartment rent', category: 'Housing', accountId: 'acc-bank', date: isoDate(new Date(previousMonth.getFullYear(), previousMonth.getMonth(), 2)), notes: '' },
-      { id: id(), type: 'expense', amount: 720, description: 'Monthly groceries', category: 'Food & Dining', accountId: 'acc-bank', date: isoDate(new Date(previousMonth.getFullYear(), previousMonth.getMonth(), 9)), notes: '' }
-    ],
-    budgets: [
-      { id: id(), month: dateKey(now), category: 'Food & Dining', amount: 900 },
-      { id: id(), month: dateKey(now), category: 'Transport', amount: 500 },
-      { id: id(), month: dateKey(now), category: 'Shopping', amount: 600 },
-      { id: id(), month: dateKey(now), category: 'Entertainment', amount: 350 }
-    ]
+    accounts: [],
+    transactions: [],
+    budgets: []
   };
 }
 
 let state;
+localStorage.removeItem('zain-finance-v1');
 try { state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || createSeedData(); }
 catch { state = createSeedData(); }
 state.settings ||= { currency: 'AED' };
@@ -387,7 +367,7 @@ $('#restoreData').addEventListener('change', async event => {
   } catch { toast('This is not a valid Zain Finance backup'); }
   event.target.value = '';
 });
-$('#resetData').addEventListener('click', () => { if (confirm('This permanently deletes all finance data on this device. Continue?')) { state = { version: 1, settings: { currency: state.settings.currency }, accounts: [], transactions: [], budgets: [] }; persist('App data reset'); } });
+$('#resetData').addEventListener('click', () => { if (confirm('This permanently deletes all finance data on this device. Continue?')) { state = { version: 2, settings: { currency: state.settings.currency }, accounts: [], transactions: [], budgets: [] }; persist('App data reset'); } });
 
 let deferredInstall;
 window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstall = event; $('#installButton').hidden = false; });
