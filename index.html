@@ -10,8 +10,31 @@
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
-  <div class="app-shell">
+<body class="auth-pending">
+  <section class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <div class="auth-brand"><span class="brand-mark">ZF</span><div><strong>Zain Finance</strong><small>Private cloud finance</small></div></div>
+      <div class="auth-copy">
+        <p class="eyebrow">Secure account</p>
+        <h1 id="authTitle">Welcome back</h1>
+        <p id="authDescription">Sign in to access the same finances on your mobile and desktop.</p>
+      </div>
+      <form id="authForm" class="auth-form">
+        <label><span>Email address</span><input type="email" name="email" autocomplete="email" placeholder="you@example.com" required></label>
+        <label><span>Password</span><input type="password" name="password" autocomplete="current-password" minlength="8" placeholder="Minimum 8 characters" required></label>
+        <p class="auth-message" id="authMessage" role="status"></p>
+        <button class="primary-button auth-submit" id="authSubmit" type="submit">Sign in securely</button>
+      </form>
+      <div class="auth-links">
+        <button type="button" id="authToggle">Create a new account</button>
+        <button type="button" id="forgotPassword">Forgot password?</button>
+      </div>
+      <div class="auth-security"><span>✓</span><p>Your records are protected by account-level database security and encrypted in transit.</p></div>
+    </div>
+    <div class="auth-visual" aria-hidden="true"><div class="auth-orb"><span>↕</span><strong>Live sync</strong><small>Mobile · Desktop</small></div></div>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
     <aside class="sidebar">
       <a class="brand" href="#dashboard" aria-label="Zain Finance home">
         <span class="brand-mark">ZF</span>
@@ -39,6 +62,7 @@
           <h1 id="pageTitle">Financial overview</h1>
         </div>
         <div class="topbar-actions">
+          <span class="sync-status" id="syncStatus"><i></i><span>Synced</span></span>
           <button class="icon-button" id="installButton" title="Install app" hidden>⇩</button>
           <button class="primary-button" data-open="transaction"><span>＋</span> Add transaction</button>
         </div>
@@ -127,6 +151,7 @@
 
       <section class="view" id="settingsView">
         <div class="settings-grid">
+          <article class="panel settings-card"><div class="settings-icon">@</div><div><h3>Your cloud account</h3><p id="accountEmail">Signed in securely</p><button class="secondary-button" id="signOutButton">Sign out</button></div></article>
           <article class="panel settings-card"><div class="settings-icon">¤</div><div><h3>Currency</h3><p>Choose the currency used throughout the app.</p><select id="currencySetting"><option value="AED">AED — UAE Dirham</option><option value="PKR">PKR — Pakistani Rupee</option><option value="USD">USD — US Dollar</option><option value="GBP">GBP — British Pound</option><option value="EUR">EUR — Euro</option></select></div></article>
           <article class="panel settings-card"><div class="settings-icon">⇩</div><div><h3>Backup your data</h3><p>Download a complete backup that you can restore later.</p><button class="secondary-button" id="backupData">Download backup</button></div></article>
           <article class="panel settings-card"><div class="settings-icon">⇧</div><div><h3>Restore a backup</h3><p>Import a Zain Finance JSON backup from this or another device.</p><label class="secondary-button file-button">Choose backup<input id="restoreData" type="file" accept="application/json"></label></div></article>
@@ -189,6 +214,9 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="cloud.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
