@@ -122,7 +122,11 @@
 
   async function signUp(email, password) {
     if (!client) throw new Error('Cloud connection is not configured.');
-    const { data, error } = await client.auth.signUp({ email, password });
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: location.origin + location.pathname }
+    });
     if (error) throw error;
     if (data.session?.user?.id !== user?.id) await useSession(data.session);
     return { needsConfirmation: !data.session };
