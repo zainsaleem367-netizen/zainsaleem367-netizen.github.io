@@ -1,4 +1,4 @@
-const CACHE = 'zain-finance-v3-cloud';
+const CACHE = 'zain-finance-v3-cloud-1';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './cloud.js', './app.js', './manifest.json', './icons/icon.svg'];
 
 self.addEventListener('install', event => {
