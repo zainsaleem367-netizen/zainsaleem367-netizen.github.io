@@ -1,5 +1,5 @@
-const CACHE = 'zain-finance-v2';
-const ASSETS = ['./', './index.html', './styles.css', './app.js', './manifest.json', './icons/icon.svg'];
+const CACHE = 'zain-finance-v3-cloud';
+const ASSETS = ['./', './index.html', './styles.css', './config.js', './cloud.js', './app.js', './manifest.json', './icons/icon.svg'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
