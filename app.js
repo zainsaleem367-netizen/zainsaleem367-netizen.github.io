@@ -1,5 +1,3 @@
-const STORAGE_KEY = 'zain-finance-v2';
-
 const expenseCategories = ['Housing', 'Food & Dining', 'Transport', 'Utilities', 'Shopping', 'Health', 'Education', 'Family', 'Travel', 'Entertainment', 'Other'];
 const incomeCategories = ['Salary', 'Freelance', 'Business', 'Investment', 'Gift', 'Refund', 'Other Income'];
 const categoryColours = ['#4078ff', '#14b888', '#8c5cf5', '#f59e3d', '#e5587a', '#23a6b8', '#6c7b9a', '#ec7d4f', '#7cb342', '#ba68c8', '#8d9aad'];
@@ -19,7 +17,7 @@ const sum = values => values.reduce((total, value) => total + Number(value || 0)
 
 function createSeedData() {
   return {
-    version: 2,
+    version: 3,
     settings: { currency: 'AED' },
     accounts: [],
     transactions: [],
@@ -27,10 +25,7 @@ function createSeedData() {
   };
 }
 
-let state;
-localStorage.removeItem('zain-finance-v1');
-try { state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || createSeedData(); }
-catch { state = createSeedData(); }
+let state = createSeedData();
 state.settings ||= { currency: 'AED' };
 state.accounts ||= [];
 state.transactions ||= [];
@@ -43,9 +38,29 @@ const shortMoney = amount => new Intl.NumberFormat('en-AE', { style: 'currency',
 const formatDate = value => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(`${value}T12:00:00`));
 
 function persist(message) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   renderAll();
   if (message) toast(message);
+}
+
+function setSyncStatus(status, label) {
+  const el = $('#syncStatus');
+  el.className = `sync-status ${status || ''}`.trim();
+  el.querySelector('span').textContent = label || (status === 'syncing' ? 'Syncing…' : status === 'offline' ? 'Offline' : status === 'error' ? 'Sync error' : 'Synced');
+}
+
+async function cloudAction(action, successMessage) {
+  setSyncStatus('syncing');
+  try {
+    const result = await action();
+    setSyncStatus('', 'Synced');
+    if (successMessage) toast(successMessage);
+    return { ok: true, result };
+  } catch (error) {
+    console.error(error);
+    setSyncStatus(navigator.onLine ? 'error' : 'offline');
+    toast(error.message || 'Could not sync. Please try again.');
+    return { ok: false };
+  }
 }
 
 function toast(message) {
@@ -287,44 +302,55 @@ $$('[data-close]').forEach(button => button.addEventListener('click', () => butt
 $$('.app-dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }));
 
 $('#transactionForm').addEventListener('change', event => { if (event.target.name === 'type') updateTransactionCategories(); });
-$('#transactionForm').addEventListener('submit', event => {
+$('#transactionForm').addEventListener('submit', async event => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget));
   const transaction = { ...data, id: data.id || id(), amount: Number(data.amount) };
   const index = state.transactions.findIndex(t => t.id === data.id);
+  const saved = await cloudAction(() => CloudSync.upsertTransaction(transaction));
+  if (!saved.ok) return;
   if (index >= 0) state.transactions[index] = transaction; else state.transactions.push(transaction);
   $('#transactionDialog').close();
   persist(index >= 0 ? 'Transaction updated' : 'Transaction added');
 });
 
-$('#accountForm').addEventListener('submit', event => {
+$('#accountForm').addEventListener('submit', async event => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget));
   const account = { ...data, id: data.id || id(), openingBalance: Number(data.openingBalance) };
   const index = state.accounts.findIndex(a => a.id === data.id);
+  const saved = await cloudAction(() => CloudSync.upsertAccount(account));
+  if (!saved.ok) return;
   if (index >= 0) state.accounts[index] = account; else state.accounts.push(account);
   $('#accountDialog').close();
   persist(index >= 0 ? 'Account updated' : 'Account added');
 });
 
-$('#budgetForm').addEventListener('submit', event => {
+$('#budgetForm').addEventListener('submit', async event => {
   event.preventDefault();
   const data = Object.fromEntries(new FormData(event.currentTarget));
   const existing = state.budgets.find(b => b.month === data.month && b.category === data.category);
-  if (existing) existing.amount = Number(data.amount); else state.budgets.push({ ...data, id: id(), amount: Number(data.amount) });
+  const budget = { ...data, id: existing?.id || id(), amount: Number(data.amount) };
+  const saved = await cloudAction(() => CloudSync.upsertBudget(budget));
+  if (!saved.ok) return;
+  if (existing) existing.amount = budget.amount; else state.budgets.push({ ...budget, id: saved.result || budget.id });
   $('#budgetDialog').close();
   $('#budgetMonth').value = data.month;
   persist(existing ? 'Budget updated' : 'Budget added');
 });
 
-$('#transactionTableBody').addEventListener('click', event => {
+$('#transactionTableBody').addEventListener('click', async event => {
   const edit = event.target.closest('.edit-transaction');
   const del = event.target.closest('.delete-transaction');
   if (edit) openTransaction(state.transactions.find(t => t.id === edit.dataset.id));
-  if (del && confirm('Delete this transaction?')) { state.transactions = state.transactions.filter(t => t.id !== del.dataset.id); persist('Transaction deleted'); }
+  if (del && confirm('Delete this transaction?')) {
+    const deleted = await cloudAction(() => CloudSync.deleteTransaction(del.dataset.id));
+    if (!deleted.ok) return;
+    state.transactions = state.transactions.filter(t => t.id !== del.dataset.id); persist('Transaction deleted');
+  }
 });
 
-$('#accountGrid').addEventListener('click', event => {
+$('#accountGrid').addEventListener('click', async event => {
   const menu = event.target.closest('[data-account-menu]');
   const edit = event.target.closest('.edit-account');
   const del = event.target.closest('.delete-account');
@@ -333,20 +359,33 @@ $('#accountGrid').addEventListener('click', event => {
   if (del) {
     const used = state.transactions.some(t => t.accountId === del.dataset.id);
     if (used) return toast('Delete or move this account’s transactions first');
-    if (confirm('Delete this account?')) { state.accounts = state.accounts.filter(a => a.id !== del.dataset.id); persist('Account deleted'); }
+    if (confirm('Delete this account?')) {
+      const deleted = await cloudAction(() => CloudSync.deleteAccount(del.dataset.id));
+      if (!deleted.ok) return;
+      state.accounts = state.accounts.filter(a => a.id !== del.dataset.id); persist('Account deleted');
+    }
   }
 });
 
-$('#budgetGrid').addEventListener('click', event => {
+$('#budgetGrid').addEventListener('click', async event => {
   const del = event.target.closest('.delete-budget');
-  if (del && confirm('Delete this budget?')) { state.budgets = state.budgets.filter(b => b.id !== del.dataset.id); persist('Budget deleted'); }
+  if (del && confirm('Delete this budget?')) {
+    const deleted = await cloudAction(() => CloudSync.deleteBudget(del.dataset.id));
+    if (!deleted.ok) return;
+    state.budgets = state.budgets.filter(b => b.id !== del.dataset.id); persist('Budget deleted');
+  }
 });
 
 ['transactionSearch', 'transactionTypeFilter', 'transactionMonthFilter'].forEach(key => $(`#${key}`).addEventListener(key === 'transactionSearch' ? 'input' : 'change', renderTransactions));
 $('#budgetMonth').addEventListener('change', renderBudgets);
 $('#reportMonth').addEventListener('change', renderReports);
 $('#chartPeriod').addEventListener('change', renderDashboard);
-$('#currencySetting').addEventListener('change', event => { state.settings.currency = event.target.value; persist('Currency updated'); });
+$('#currencySetting').addEventListener('change', async event => {
+  const previous = state.settings.currency;
+  const saved = await cloudAction(() => CloudSync.saveCurrency(event.target.value));
+  if (!saved.ok) { event.target.value = previous; return; }
+  state.settings.currency = event.target.value; persist('Currency updated');
+});
 
 $('#exportCsv').addEventListener('click', () => {
   const header = ['Date', 'Type', 'Description', 'Category', 'Account', 'Amount', 'Notes'];
@@ -363,11 +402,93 @@ $('#restoreData').addEventListener('change', async event => {
     const imported = JSON.parse(await file.text());
     if (!Array.isArray(imported.accounts) || !Array.isArray(imported.transactions) || !Array.isArray(imported.budgets)) throw new Error('Invalid backup');
     if (!confirm('Replace current data with this backup?')) return;
+    const restored = await cloudAction(() => CloudSync.replaceAll(imported));
+    if (!restored.ok) return;
     state = imported; persist('Backup restored');
   } catch { toast('This is not a valid Zain Finance backup'); }
   event.target.value = '';
 });
-$('#resetData').addEventListener('click', () => { if (confirm('This permanently deletes all finance data on this device. Continue?')) { state = { version: 2, settings: { currency: state.settings.currency }, accounts: [], transactions: [], budgets: [] }; persist('App data reset'); } });
+$('#resetData').addEventListener('click', async () => {
+  if (!confirm('This permanently deletes your finance data from every synced device. Continue?')) return;
+  const cleared = await cloudAction(() => CloudSync.clearAll());
+  if (!cleared.ok) return;
+  state = createSeedData(); persist('Cloud data reset');
+});
+
+let authMode = 'signin';
+const authForm = $('#authForm');
+const emailLabel = authForm.elements.email.closest('label');
+
+function setAuthMessage(message = '', success = false) {
+  $('#authMessage').textContent = message;
+  $('#authMessage').classList.toggle('success', success);
+}
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const signup = mode === 'signup';
+  const recovery = mode === 'recovery';
+  $('#authTitle').textContent = recovery ? 'Choose a new password' : signup ? 'Create your account' : 'Welcome back';
+  $('#authDescription').textContent = recovery ? 'Enter a secure new password for your finance account.' : signup ? 'One private account keeps your finances synced across every device.' : 'Sign in to access the same finances on your mobile and desktop.';
+  $('#authSubmit').textContent = recovery ? 'Update password' : signup ? 'Create secure account' : 'Sign in securely';
+  $('#authToggle').textContent = signup ? 'Already have an account? Sign in' : 'Create a new account';
+  $('#authToggle').hidden = recovery;
+  $('#forgotPassword').hidden = signup || recovery;
+  emailLabel.hidden = recovery;
+  authForm.elements.email.required = !recovery;
+  authForm.elements.password.autocomplete = signup || recovery ? 'new-password' : 'current-password';
+  setAuthMessage();
+}
+
+function showAuth() {
+  $('#appShell').hidden = true;
+  $('#authScreen').hidden = false;
+  document.body.classList.add('auth-pending');
+}
+
+function showApp(user) {
+  $('#accountEmail').textContent = user.email || 'Signed in securely';
+  $('#authScreen').hidden = true;
+  $('#appShell').hidden = false;
+  document.body.classList.remove('auth-pending');
+  setSyncStatus('syncing', 'Loading…');
+}
+
+authForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  const submit = $('#authSubmit');
+  submit.disabled = true;
+  setAuthMessage();
+  try {
+    if (authMode === 'signup') {
+      const result = await CloudSync.signUp(authForm.elements.email.value.trim(), authForm.elements.password.value);
+      if (result.needsConfirmation) setAuthMessage('Account created. Check your email and confirm it, then sign in.', true);
+    } else if (authMode === 'recovery') {
+      await CloudSync.updatePassword(authForm.elements.password.value);
+      setAuthMessage('Password updated successfully.', true);
+      setTimeout(() => showApp(CloudSync.user), 700);
+    } else {
+      await CloudSync.signIn(authForm.elements.email.value.trim(), authForm.elements.password.value);
+    }
+  } catch (error) {
+    setAuthMessage(error.message || 'Sign-in failed. Please check your details.');
+  } finally { submit.disabled = false; }
+});
+
+$('#authToggle').addEventListener('click', () => setAuthMode(authMode === 'signup' ? 'signin' : 'signup'));
+$('#forgotPassword').addEventListener('click', async () => {
+  const email = authForm.elements.email.value.trim();
+  if (!email) { setAuthMessage('Enter your email address first.'); return; }
+  try { await CloudSync.resetPassword(email); setAuthMessage('Password reset email sent. Check your inbox.', true); }
+  catch (error) { setAuthMessage(error.message || 'Could not send reset email.'); }
+});
+$('#signOutButton').addEventListener('click', async () => {
+  const result = await cloudAction(() => CloudSync.signOut());
+  if (result.ok) { state = createSeedData(); renderAll(); }
+});
+
+window.addEventListener('offline', () => setSyncStatus('offline'));
+window.addEventListener('online', () => setSyncStatus('syncing'));
 
 let deferredInstall;
 window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); deferredInstall = event; $('#installButton').hidden = false; });
@@ -380,5 +501,24 @@ $('#reportMonth').value = dateKey();
 const initialView = location.hash.slice(1);
 setView(['dashboard','transactions','accounts','budgets','reports','settings'].includes(initialView) ? initialView : 'dashboard');
 renderAll();
+
+CloudSync.init({
+  onState(next) {
+    state = next;
+    renderAll();
+    setSyncStatus('', 'Synced');
+  },
+  onAuth(event) {
+    if (event.type === 'signed-in') showApp(event.user);
+    if (event.type === 'signed-out') { state = createSeedData(); renderAll(); setAuthMode('signin'); showAuth(); }
+    if (event.type === 'password-recovery') { setAuthMode('recovery'); showAuth(); }
+    if (event.type === 'configuration-error') { showAuth(); setAuthMessage(event.message); }
+    if (event.type === 'error') { setSyncStatus(navigator.onLine ? 'error' : 'offline'); if (!$('#appShell').hidden) toast(event.message); }
+    if (event.type === 'sync') {
+      if (event.status === 'SUBSCRIBED') setSyncStatus('', 'Live sync');
+      if (['CHANNEL_ERROR', 'TIMED_OUT'].includes(event.status)) setSyncStatus('error');
+    }
+  }
+}).catch(error => { showAuth(); setAuthMessage(error.message || 'Cloud connection failed.'); });
 
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
